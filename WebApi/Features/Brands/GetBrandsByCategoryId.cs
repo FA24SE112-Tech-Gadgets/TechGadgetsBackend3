@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Linq.Expressions;
 using WebApi.Common.Exceptions;
 using WebApi.Common.Filters;
 using WebApi.Common.Paginations;
+using WebApi.Common.QueryableExtensions;
 using WebApi.Data;
+using WebApi.Data.Entities;
 using WebApi.Features.Brands.Mappers;
 using WebApi.Features.Brands.Models;
 
@@ -17,6 +20,8 @@ public class GetBrandsByCategoryIdController : ControllerBase
     public new class Request : PagedRequest
     {
         public string? Name { get; set; }
+        public string? SortOrder { get; set; }
+        public string? SortColumn { get; set; }
     }
 
     public class RequestValidator : PagedRequestValidator<Request>;
@@ -35,13 +40,25 @@ public class GetBrandsByCategoryIdController : ControllerBase
                 .Build();
         }
 
-        var response = await context.Brands
-                                .Where(b => b.BrandCategories.Any(bc => bc.CategoryId == categoryId)
-                                        && b.Name.Contains(request.Name ?? ""))
-                                .OrderBy(b => b.Name)
-                                .Select(b => b.ToBrandResponse())
-                                .ToPagedListAsync(request);
+        var query = context.Brands.AsQueryable();
+
+        query = query.OrderByColumn(GetSortProperty(request), request.SortOrder);
+
+        var response = await query
+                            .Where(b => b.BrandCategories.Any(bc => bc.CategoryId == categoryId)
+                                    && b.Name.Contains(request.Name ?? ""))
+                            .Select(b => b.ToBrandResponse())
+                            .ToPagedListAsync(request);
 
         return Ok(response);
+    }
+
+    private static Expression<Func<Brand, object>> GetSortProperty(Request request)
+    {
+        return request.SortColumn?.ToLower() switch
+        {
+            "name" => c => c.Name,
+            _ => c => c.Id
+        };
     }
 }

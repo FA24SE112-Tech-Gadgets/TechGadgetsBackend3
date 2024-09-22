@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Linq.Expressions;
 using WebApi.Common.Exceptions;
 using WebApi.Common.Filters;
 using WebApi.Common.Paginations;
+using WebApi.Common.QueryableExtensions;
 using WebApi.Data;
+using WebApi.Data.Entities;
 using WebApi.Features.Categories.Mappers;
 using WebApi.Features.Categories.Models;
 
@@ -19,6 +22,8 @@ public class GetCategoriesByBrandIdController : ControllerBase
         public string Name { get; set; } = string.Empty;
         public bool? IsAdminCreated { get; set; }
         public bool? IsRoot { get; set; }
+        public string? SortOrder { get; set; }
+        public string? SortColumn { get; set; }
     }
 
     public class RequestValidator : PagedRequestValidator<Request>;
@@ -56,13 +61,23 @@ public class GetCategoriesByBrandIdController : ControllerBase
             }
         }
 
+        query = query.OrderByColumn(GetSortProperty(request), request.SortOrder);
+
         var response = await query
                             .Where(c => c.Name.Contains(request.Name)
                                     && c.BrandCategories.Any(bc => bc.BrandId == brandId))
-                            .OrderBy(c => c.Name)
                             .Select(c => c.ToCategoryResponse())
                             .ToPagedListAsync(request);
 
         return Ok(response);
+    }
+
+    private static Expression<Func<Category, object>> GetSortProperty(Request request)
+    {
+        return request.SortColumn?.ToLower() switch
+        {
+            "name" => c => c.Name,
+            _ => c => c.Id
+        };
     }
 }
