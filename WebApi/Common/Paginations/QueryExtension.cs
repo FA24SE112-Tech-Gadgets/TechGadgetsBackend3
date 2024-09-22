@@ -1,15 +1,15 @@
 ﻿using System.Linq.Expressions;
 
-namespace WebApi.Common.QueryableExtensions;
+namespace WebApi.Common.Paginations;
 
 public static class QueryableExtension
 {
     public static IOrderedQueryable<T> OrderByColumn<T>(
             this IQueryable<T> query,
             Expression<Func<T, object>> sortExpression,
-            string? sortOrder) where T : class
+            SortDir? sortOrder) where T : class
     {
-        return sortOrder?.ToLower() == "desc"
+        return sortOrder?.ToString().ToLower() == "desc"
             ? query.OrderByDescending(sortExpression)
             : query.OrderBy(sortExpression);
     }
