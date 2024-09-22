@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Linq.Expressions;
+using WebApi.Common.Exceptions;
 using WebApi.Common.Filters;
 using WebApi.Common.Paginations;
 using WebApi.Common.QueryableExtensions;
@@ -13,7 +15,7 @@ namespace WebApi.Features.Categories;
 
 [ApiController]
 [RequestValidation<Request>]
-public class GetCategoriesController : ControllerBase
+public class GetCategoriesByBrandIdController : ControllerBase
 {
     public new class Request : PagedRequest
     {
@@ -26,12 +28,20 @@ public class GetCategoriesController : ControllerBase
 
     public class RequestValidator : PagedRequestValidator<Request>;
 
-    [HttpGet("categories")]
+    [HttpGet("categories/brands/{brandId}")]
     [Tags("Categories")]
-    [SwaggerOperation(Summary = "Get Categories", Description = "This API is for retrieving categories")]
+    [SwaggerOperation(Summary = "Get Categories By Brand Id", Description = "This API is for retrieving categories by brand Id")]
     [ProducesResponseType(typeof(PagedList<CategoryResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Handler([FromQuery] Request request, [FromServices] AppDbContext context)
+    public async Task<IActionResult> Handler(int brandId, [FromQuery] Request request, [FromServices] AppDbContext context)
     {
+        if (!await context.Brands.AnyAsync(b => b.Id == brandId))
+        {
+            throw TechGadgetException.NewBuilder()
+                .WithCode(TechGadgetErrorCode.WEB_00)
+                .AddReason("brand", "Không tìm thấy thương hiệu")
+                .Build();
+        }
+
         var query = context.Categories.AsQueryable();
 
         if (request.IsAdminCreated.HasValue)
@@ -54,7 +64,8 @@ public class GetCategoriesController : ControllerBase
         query = query.OrderByColumn(GetSortProperty(request), request.SortOrder);
 
         var response = await query
-                            .Where(c => c.Name.Contains(request.Name))
+                            .Where(c => c.Name.Contains(request.Name)
+                                    && c.BrandCategories.Any(bc => bc.BrandId == brandId))
                             .Select(c => c.ToCategoryResponse())
                             .ToPagedListAsync(request);
 

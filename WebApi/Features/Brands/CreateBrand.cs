@@ -20,8 +20,8 @@ public class CreateBrandController : ControllerBase
 {
     public new class Request
     {
-        public string Name { get; set; } = default!;
-        public IFormFile Logo { get; set; } = default!;
+        public string? Name { get; set; }
+        public IFormFile? Logo { get; set; }
     }
 
     public class Validator : AbstractValidator<Request>
@@ -56,7 +56,7 @@ public class CreateBrandController : ControllerBase
 
         try
         {
-            logoUrl = await storageService.UploadFileToCloudStorage(request.Logo, Guid.NewGuid().ToString());
+            logoUrl = await storageService.UploadFileToCloudStorage(request.Logo!, Guid.NewGuid().ToString());
         }
         catch (Exception)
         {
@@ -72,7 +72,7 @@ public class CreateBrandController : ControllerBase
 
         var brand = new Brand
         {
-            Name = request.Name,
+            Name = request.Name!,
             LogoUrl = logoUrl
         };
 
