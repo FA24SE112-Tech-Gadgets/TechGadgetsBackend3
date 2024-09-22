@@ -27,6 +27,7 @@ public class GetBrandsController : ControllerBase
     {
         var response = await context.Brands
                                 .Where(b => b.Name.Contains(request.Name ?? ""))
+                                .OrderBy(b => b.Name)
                                 .Select(b => b.ToBrandResponse())
                                 .ToPagedListAsync(request);
 
