@@ -21,6 +21,7 @@ public class GetCategoryByIdController : ControllerBase
     {
         var category = await context.Categories
                             .Include(c => c.Parent)
+                            .Include(c => c.Children)
                             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (category is null)
@@ -44,6 +45,7 @@ public class GetCategoryByIdController : ControllerBase
             Id = id,
             IsAdminCreated = true,
             Parent = parents.Select(p => p.ToCategoryResponse()).ToList(),
+            Children = category.Children.Select(p => p.ToCategoryResponse()).ToList(),
         };
 
         return Ok(response);
