@@ -5,7 +5,6 @@ using System.Linq.Expressions;
 using WebApi.Common.Exceptions;
 using WebApi.Common.Filters;
 using WebApi.Common.Paginations;
-using WebApi.Common.QueryableExtensions;
 using WebApi.Data;
 using WebApi.Data.Entities;
 using WebApi.Features.Categories.Mappers;
@@ -22,7 +21,7 @@ public class GetCategoriesByBrandIdController : ControllerBase
         public string Name { get; set; } = string.Empty;
         public bool? IsAdminCreated { get; set; }
         public bool? IsRoot { get; set; }
-        public string? SortOrder { get; set; }
+        public SortDir? SortOrder { get; set; }
         public string? SortColumn { get; set; }
     }
 
