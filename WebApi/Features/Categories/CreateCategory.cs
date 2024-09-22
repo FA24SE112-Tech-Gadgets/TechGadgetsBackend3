@@ -20,7 +20,7 @@ public class CreateCategoryController : ControllerBase
     public new class Request
     {
         public int? ParentId { get; set; }
-        public string Name { get; set; } = default!;
+        public string? Name { get; set; }
     }
 
     public class Validator : AbstractValidator<Request>
@@ -58,7 +58,7 @@ public class CreateCategoryController : ControllerBase
 
         var category = new Category
         {
-            Name = request.Name,
+            Name = request.Name!,
             ParentId = request.ParentId,
             IsAdminCreated = true
         };
