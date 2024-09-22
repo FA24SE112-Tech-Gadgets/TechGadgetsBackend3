@@ -38,6 +38,7 @@ public class GetBrandsByCategoryIdController : ControllerBase
         var response = await context.Brands
                                 .Where(b => b.BrandCategories.Any(bc => bc.CategoryId == categoryId)
                                         && b.Name.Contains(request.Name ?? ""))
+                                .OrderBy(b => b.Name)
                                 .Select(b => b.ToBrandResponse())
                                 .ToPagedListAsync(request);
 
