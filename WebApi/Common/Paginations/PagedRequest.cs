@@ -6,8 +6,8 @@ namespace WebApi.Common.Paginations;
 public class PagedRequest
 {
     public const int MaxPageSize = 100;
-    public int? Page { get; }
-    public int? PageSize { get; }
+    public int? Page { get; set; }
+    public int? PageSize { get; set; }
 }
 
 public class PagedRequestValidator<T> : AbstractValidator<T> where T : PagedRequest
