@@ -1,16 +1,20 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
+using WebApi.Common.Exceptions;
 using WebApi.Common.Filters;
 using WebApi.Data;
 using WebApi.Data.Entities;
+using WebApi.Features.SellerApplications.Mappers;
+using WebApi.Services.Auth;
 using WebApi.Services.Storage;
 
 namespace WebApi.Features.SellerApplications;
 
 [ApiController]
 [JwtValidation]
-[RolesFilter(Role.Admin)]
+[RolesFilter(Role.Buyer)]
 [RequestValidation<Request>]
 public class CreateSellerApplicationController : ControllerBase
 {
@@ -18,8 +22,9 @@ public class CreateSellerApplicationController : ControllerBase
     {
         public string? CompanyName { get; set; }
         public string ShopName { get; set; } = default!;
+        public string ShopAddress { get; set; } = default!;
         public string ShippingAddress { get; set; } = default!;
-        public int BusinnessModelId { get; set; }
+        public BusinessModel BusinnessModel { get; set; }
         public IFormFile? BusinessRegistrationCertificate { get; set; }
         public string TaxCode { get; set; } = default!;
         public string? RejectReason { get; set; }
@@ -33,11 +38,11 @@ public class CreateSellerApplicationController : ControllerBase
         {
             RuleFor(sp => sp.CompanyName)
                 .NotEmpty()
-                .When(sp => RequiresCompanyName(sp.BusinnessModelId))
+                .When(sp => RequiresCompanyName(sp.BusinnessModel))
                 .WithMessage("Tên công ty không được để trống");
             RuleFor(sp => sp.BusinessRegistrationCertificate)
                 .NotNull()
-                .When(sp => RequiresCertificate(sp.BusinnessModelId))
+                .When(sp => RequiresCertificate(sp.BusinnessModel))
                 .WithMessage("Giấy phép kinh doanh không được để trống");
             RuleFor(sp => sp.TaxCode)
                 .NotEmpty()
@@ -50,21 +55,35 @@ public class CreateSellerApplicationController : ControllerBase
             RuleFor(sp => sp.ShopName)
                 .NotEmpty()
                 .WithMessage("Tên cửa hàng không được để trống");
+            RuleFor(sp => sp.ShopAddress)
+                .NotEmpty()
+                .WithMessage("Địa chỉ cửa hàng không được để trống");
             RuleFor(sp => sp.Type)
                 .NotNull()
                 .When(sp => sp.Type == SellerApplicationType.Create)
                 .WithMessage("Loại đơn phải là Create");
+            RuleForEach(sp => sp.BillingMails)
+                .EmailAddress()
+                .WithMessage("Email {PropertyValue} không hợp lệ.");
+            RuleFor(sp => sp.BusinnessModel)
+                .NotEmpty()
+                .When(sp => sp.Type == SellerApplicationType.Update)
+                .WithMessage("Không được cập nhật BusinessModel");
+            RuleFor(sp => sp.TaxCode)
+                .NotEmpty()
+                .When(sp => sp.Type == SellerApplicationType.Update)
+                .WithMessage("Không được cập nhật TaxCode");
         }
-        private static bool RequiresCompanyName(int businessModelId)
+        private static bool RequiresCompanyName(BusinessModel businessModel)
         {
-            var modelsRequiringCompanyName = new List<int> { 2, 3 }; //Hộ kinh doanh, Công ty
-            return modelsRequiringCompanyName.Contains(businessModelId);
+            var modelsRequiringCompanyName = new List<BusinessModel> { BusinessModel.BusinessHousehold, BusinessModel.Company }; //Hộ kinh doanh, Công ty
+            return modelsRequiringCompanyName.Contains(businessModel);
         }
 
-        private static bool RequiresCertificate(int businessModelId)
+        private static bool RequiresCertificate(BusinessModel businessModel)
         {
-            var modelsRequiringCompanyName = new List<int> { 2, 3 }; //Hộ kinh doanh, Công ty
-            return modelsRequiringCompanyName.Contains(businessModelId);
+            var modelsRequiringCompanyName = new List<BusinessModel> { BusinessModel.BusinessHousehold, BusinessModel.Company }; //Hộ kinh doanh, Công ty
+            return modelsRequiringCompanyName.Contains(businessModel);
         }
 
         private static bool BeValidTaxCode(string taxCode)
@@ -126,8 +145,59 @@ public class CreateSellerApplicationController : ControllerBase
                             "<br>&nbsp; - Mã số thuế được duplicate(cho đơn giản) và format được quy định trong Business Rules." +
                             "<br>&nbsp; - Địa chỉ lấy hàng (ShippingAddress) khác với địa chỉ trong User (2 địa chỉ này có thể trùng được nhưng nghĩa khác nhau)."
     )]
-    public async Task<IActionResult> Handler([FromForm] Request request, AppDbContext context, GoogleStorageService storageService)
+    public async Task<IActionResult> Handler([FromForm] Request request, AppDbContext context, GoogleStorageService storageService, [FromServices] CurrentUserService currentUserService)
     {
+        int userId = await currentUserService.GetCurrentUserId();
+
+        //Check xem có đơn nào đang tạo trước đó không
+        bool cannotCreate = await context.SellerApplications.AnyAsync(sa => sa.UserId == userId && sa.Status == SellerApplicationStatus.Pending);
+        if (cannotCreate)
+        {
+            throw TechGadgetException.NewBuilder()
+            .WithCode(TechGadgetErrorCode.WEB_00)
+            .AddReason("sellerApplication", "Bạn đang có 1 đơn chờ duyệt. Hãy kiên nhẫn.")
+            .Build();
+        }
+
+        string? businessRegistrationCertificateUrl = null;
+        try
+        {
+            if (request.BusinnessModel != BusinessModel.Personal)
+            {
+                businessRegistrationCertificateUrl = await storageService.UploadFileToCloudStorage(request.BusinessRegistrationCertificate!, Guid.NewGuid().ToString());
+            }
+        }
+        catch (Exception)
+        {
+            if (businessRegistrationCertificateUrl != null)
+            {
+                await storageService.DeleteFileFromCloudStorage(businessRegistrationCertificateUrl);
+            }
+            throw TechGadgetException.NewBuilder()
+                .WithCode(TechGadgetErrorCode.WES_00)
+                .AddReason("businessRegistrationCertificate", "Lỗi khi lưu giấy phép kinh doanh")
+                .Build();
+        }
+
+        SellerApplication sellerApplication = new SellerApplication
+        {
+            UserId = userId,
+            CompanyName = request.CompanyName,
+            TaxCode = request.TaxCode,
+            Type = request.Type,
+            ShopName = request.ShopName,
+            ShippingAddress = request.ShippingAddress,
+            ShopAddress = request.ShopAddress,
+            RejectReason = request.RejectReason!,
+            BillingMailApplications = request.BillingMails.ToBillingMailApplication()!,
+            Status = SellerApplicationStatus.Pending,
+            BusinessModel = request.BusinnessModel,
+            BusinessRegistrationCertificateUrl = businessRegistrationCertificateUrl,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        context.SellerApplications.Add(sellerApplication);
+        await context.SaveChangesAsync();
 
         return Created();
     }
