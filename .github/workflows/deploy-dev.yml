@@ -36,7 +36,7 @@ jobs:
             sudo docker stop test-rabbit || true
             sudo docker rm test-rabbit || true
             sudo docker image prune -f
-            sudo docker run -d --hostname mytest-rabbit --name test-rabbit -e RABBITMQ_DEFAULT_USER=${{ secrets.RABBITMQ_USER }} -e RABBITMQ_DEFAULT_PASS=${{ secrets.RABBITMQ_PASS }} -p 5672:5672 -p 15672:15672 -p 15674:15674 -p 1883:1883 -v /etc/rabbitmq/rabbitmq-config-custom.conf:/etc/rabbitmq/rabbitmq.conf rabbitmq:3-management
+            sudo docker run -d --hostname mytest-rabbit --name test-rabbit -e RABBITMQ_DEFAULT_USER=${{ secrets.RABBITMQ_USER }} -e RABBITMQ_DEFAULT_PASS=${{ secrets.RABBITMQ_PASS }} -p 5672:5672 -p 15672:15672 -p 15674:15674 -p 15675:15675 -p 1883:1883 -v /etc/rabbitmq/rabbitmq-config-custom.conf:/etc/rabbitmq/rabbitmq.conf rabbitmq:3-management
           EOF
 
       - name: Deploy to EC2 part 2 (Enable RabbitMQ Plugin)
