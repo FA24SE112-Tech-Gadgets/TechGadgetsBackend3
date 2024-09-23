@@ -27,7 +27,6 @@ public class CreateSellerApplicationController : ControllerBase
         public BusinessModel BusinnessModel { get; set; }
         public IFormFile? BusinessRegistrationCertificate { get; set; }
         public string TaxCode { get; set; } = default!;
-        public string? RejectReason { get; set; }
         public SellerApplicationType Type { get; set; }
         public ICollection<string> BillingMails { get; set; } = [];
     }
@@ -143,6 +142,7 @@ public class CreateSellerApplicationController : ControllerBase
         Description = "API is for register seller. Note:" +
                             "<br>&nbsp; - Cá nhân(Personal) thì không cần truyền CompanyName và BusinessRegistrationCertificate." +
                             "<br>&nbsp; - Mã số thuế được duplicate(cho đơn giản) và format được quy định trong Business Rules." +
+                            "<br>&nbsp; - Đối với Type = Update thì không được update BusinessModel và TaxCode." +
                             "<br>&nbsp; - Địa chỉ lấy hàng (ShippingAddress) khác với địa chỉ trong User (2 địa chỉ này có thể trùng được nhưng nghĩa khác nhau)."
     )]
     public async Task<IActionResult> Handler([FromForm] Request request, AppDbContext context, GoogleStorageService storageService, [FromServices] CurrentUserService currentUserService)
@@ -188,7 +188,6 @@ public class CreateSellerApplicationController : ControllerBase
             ShopName = request.ShopName,
             ShippingAddress = request.ShippingAddress,
             ShopAddress = request.ShopAddress,
-            RejectReason = request.RejectReason!,
             BillingMailApplications = request.BillingMails.ToBillingMailApplication()!,
             Status = SellerApplicationStatus.Pending,
             BusinessModel = request.BusinnessModel,
