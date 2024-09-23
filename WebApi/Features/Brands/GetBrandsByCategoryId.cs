@@ -5,7 +5,6 @@ using System.Linq.Expressions;
 using WebApi.Common.Exceptions;
 using WebApi.Common.Filters;
 using WebApi.Common.Paginations;
-using WebApi.Common.QueryableExtensions;
 using WebApi.Data;
 using WebApi.Data.Entities;
 using WebApi.Features.Brands.Mappers;
@@ -20,7 +19,7 @@ public class GetBrandsByCategoryIdController : ControllerBase
     public new class Request : PagedRequest
     {
         public string? Name { get; set; }
-        public string? SortOrder { get; set; }
+        public SortDir? SortOrder { get; set; }
         public string? SortColumn { get; set; }
     }
 

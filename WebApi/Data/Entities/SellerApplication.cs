@@ -11,7 +11,7 @@ public class SellerApplication
     public BusinessModel BusinessModel { get; set; }
     public string? BusinessRegistrationCertificateUrl { get; set; }
     public string TaxCode { get; set; } = default!;
-    public string RejectReason { get; set; } = default!;
+    public string? RejectReason { get; set; } = default!;
     public SellerApplicationStatus Status { get; set; }
     public SellerApplicationType Type { get; set; }
     public DateTime CreatedAt { get; set; }
